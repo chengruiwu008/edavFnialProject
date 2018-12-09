@@ -21,8 +21,15 @@ server <- function(input,output, session){
       pal <- colorFactor("Set3", df[[input$colorby]])
     }
     else{
-      pal <- colorBin(c("#a6bddb","#67a9cf","#3690c0","#02818a","#016c59","#014636"), 
-                      df[[input$colorby]], 6)
+      if (input$colorby == "price"){
+        price_bin <- c(0,50,100,150,200,250,300,350,400,450,500,9000)
+        pal <- colorBin(c("#fa9fb5","#f768a1","#dd3497","#ae017e","#7a0177","#49006a"),
+                        bins = price_bin)
+      }
+      else{
+        pal <- colorBin(c("#fa9fb5","#f768a1","#dd3497","#ae017e","#7a0177","#49006a"), 
+                        df[[input$colorby]], 6)
+      }
     }
     
     v = input$colorby
@@ -52,15 +59,14 @@ server <- function(input,output, session){
     
     m <- leaflet(data = df) %>%
           addTiles() %>%
-          addCircles(~longitude, ~latitude, radius=50, layerId=~zipcode,
-                 stroke=FALSE, fillOpacity=0.7, color = pal(df[[input$colorby]])) %>%
-          addLegend("bottomright", pal=pal, values=df[[input$colorby]],title=input$colorby,
-                layerId="colorLegend") %>%
-                #labFormat = labelFormat(transform = function(x) sort(x, decreasing = TRUE))) %>%
-          setView(lng = -122.412, lat = 37.7525, zoom = 12) %>%
-          addAwesomeMarkers(~longitude, ~latitude, label = ~zipcode,
-                        icon=icons, clusterOptions = markerClusterOptions(),
-                        popup = paste("price $", df$price, df$property_type, sep="\n"))
+          addCircles(~longitude, ~latitude, radius=40, layerId=~zipcode,
+                 stroke=FALSE, fillOpacity=0.7, color = pal(df[[input$colorby]])) %>% 
+      addLegend("bottomright", pal=pal, values=df[[input$colorby]],title=input$colorby,
+                      layerId="colorLegend") %>% 
+      setView(lng = -122.412, lat = 37.7525, zoom = 12) %>%
+        addAwesomeMarkers(~longitude, ~latitude, label = ~zipcode,
+                          icon=icons, clusterOptions = markerClusterOptions(),
+                          popup = paste("price $", df$price, df$property_type, sep="\n"))
           # addMarkers(lng = ~longitude,
           #            lat = ~latitude,
           #            popup = paste("price", df$price))
