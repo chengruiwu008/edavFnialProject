@@ -615,7 +615,7 @@ It's possible to apply mutiple filters at the same time. Such as, we can see is 
  - Host Identity Verified: If the host's identity have been verified. 't' means the host's identity have been verified, 'f' means otherwise.
 
 *Link for interactive graph: *
-*https://edaviqnoone.shinyapps.io/edav_final_project/*
+https://edaviqnoone.shinyapps.io/edav_final_project/
 
 ******************************************************************************************************************************
 ##7. Conclusion 
