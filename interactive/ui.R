@@ -1,5 +1,5 @@
 dirui <- fluidPage(
-  titlePanel("Airbnb Listing"),
+  titlePanel("Airbnb Listings in San Francisco"),
   
   # fluidrow layout ----
   fluidRow(
