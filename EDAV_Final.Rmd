@@ -1,0 +1,644 @@
+---
+title: "Analysis on Airbnb Listings in San Francisco"
+output: html_document
+---
+_Chengrui Wu_ _Aishen Li_ _Junhao Wang_ _Xinyue Su_ 
+
+##1. Introduction 
+When people travel somewhere either for vacation, a weekend getaway or important business, a place to stay is always the first thing to decide after booking the trip. It is the most important part for everyone on the road. No wonder hotel industry is one of the most profitable business. In recent years, however, this industry has been challenged dramatically. Along with the technological progression in the internet era, a company is changing the lifestyle of many of us. Airbnb, an online marketplace for accommodation sharing, reached 4 million listings in over 65,000 cities worldwide in just 10 years. The value of Airbnb is estimated to be $32 billion today, which combines the famous Hilton group and Wynn Resorts. 
+
+We are in great interest of the Airbnb listing data for several reasons. First of all, Airbnb is a free trading marketplace, compared with chained hotel groups, it’s a decentralized system, customers have more bargaining power at Airbnb so that we think the listing price is more transparent and dynamic, and we can discover information about true market drivers. Secondly, there are way more listings on Airbnb than hotels rooms in most areas, and they are more spread out around the city. We all know that location is the most significant price determinant, with more spreaded data points, we can further reveal how this relationship was formed. Thirdly, people stayed in Airbnb rooms are about 34% more likely to leave a review, because they feel more connected with the host of the house or condo rather than a commercialized hotel, so there’s more data on how people think about their accommodation we can study.  
+
+Since we are already living in the fabulous New York City, we want to explore somewhere else, so we targeted at another mega city in the U.S. San Francisco. 
+
+Here are some questions we are most interested in San Francisco Airbnb listings:
+
++ What is the most effective driver for the price?
++ How does the location affect the listing price?
++ Is public transit important for listings?
++ Which transportation method do travelers value the most?
++ Which accommodation type is most popular? 
+
+******************************************************************************************************************************
+##2. Description of the data
+
+We are not interested in how the price or other variables change over time but rather the intrinsic relationship among them. Therefore, we picked a recent month of data, October 2018 for analysis. We have 6807 abservations over 96 variables in the dataset.
+<br>
+Airbnb has a mature API to fetch data, we just have to fill out the request to access on their portal. That process is rather straightforward, we stated our purpose for using their data and got approved on the same day. The dataset contains some basic information about every listing such as location, price, zip code, property types like apartment or house. Other very interesting and valuable features are the text descriptions, they are written by the host about the room or the community around. We are sure that we can mine some gold nuggets from these texts and learn more about the market. 
+
+******************************************************************************************************************************
+##3. Data Quality 
+
+The quality of data is obviously the best among all the sources since it is directly from the owner, it is trustworthy and relatively most complete. The first step of our exploratory data analysis on this dataset is to analysis the missing data, we plotted a visna graph to observe it intuitively. We saw that most of the data is missing sq feet and neighborhood group variables, we think this is acceptable since we don’t think the size of the house or condo is the main driver for the market, and we can infer the neighborhood from it’s coordinate and zip code information. 
+<br><br>
+```{r,fig.width= 15, message = FALSE, warning = FALSE, echo=FALSE}
+library(data.table)
+airbnb = fread("clean_listing.csv",header = T)
+require(extracat)
+extracat::visna(airbnb,sort="b")
+```
+Column wise speaking, there are 4 variables that are missing completely, we will just ignore them. We want to focus on these variables:
+
++ price
++ zipcode
++ latitude
++ longitude
++ description
++ transit
++ property_type
++ square_feet
++ cleaning_fee
++ number_of_reviews
++ review_scores_rating
++ host_verifications
++ room_type
+
+For the variables that we want to focus on, they are complete except the zip code varible, since the proportion of the missing data is very low, instead of replaceing them with some estimated value, we will just exclude these rows with missing zipcode when performing the analysis. 
+
++ Each row of this dataset coorsponding to a single listing on Airbnb with the location limited to San Francisco. 
++ The price variable is in format of strings with a dollar sign, it is easy to trim it and trandform into numerical values.
++ Address information is messey without a consistent format. However, there are also coordinates information that we can use to locate the house. 
++ Variables like cleaning feem number_of_reviews and square_feet are well prepared in numeric format.
++ Varibles in type of text block, we will process them into proper format using Python 3. 
+
+******************************************************************************************************************************
+##4.Main Analysis 
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r warning = FALSE, include= FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(data.table)
+library(ggplot2)
+library(extracat)
+library(choroplethr)
+library(choroplethrMaps)
+require(choroplethrZip)
+library(ggmap)
+library(gridExtra)
+library(wordcloud)
+library(ggridges)
+library(viridis)
+library(tidyr)
+library(choroplethrZip)
+library(dplyr)
+library(tibble)
+```
+
+```{r, warning = FALSE,include = FALSE}
+SFPrice = fread("priceNew.csv",header = T, sep = ',')
+SFPrice_Parking = fread("price_New_Parking.csv",header = T)
+SFPrice_Transit = fread("price_New_Transit.csv",header = T)
+SFPrice_Pets = fread("price_New_Pets.csv",header = T)
+SFPrice_Description = fread("price_New_Description.csv",header = T)
+word_counts_transit = fread("word_counts_transit.csv",header = T)
+word_counts_94104 = fread("word_counts_94104.csv",header = T)
+word_counts_description = fread("word_counts_description.csv",header = T)
+SFPrice_Sight= fread("price_Sight.csv",header = T)
+data = fread("word_freq_price_interval.csv",header =T)
+airbnb = fread("clean_listing.csv",header = T)
+```
+
+###4.1 Which accomdation type is most popular?
+*Rating score is a effective way to discover popularity, we first want to analyze the quality of rating scores of this data set *
+*Firstly, we assume that review score is critical, it is an indicator for a nice host, which is valued for Airbnb customer.*
+
+```{r,warning=FALSE}
+ggplot(airbnb, aes(x = review_scores_rating)) + 
+  geom_histogram(binwidth = 1, color = 'black', fill = "lightblue") +
+  ggtitle("Histogram of Review Scores Rating") +
+  xlab("Review Scores Rating") +
+  ylab("Count") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+There are 1148 observations with missing value. Most listings' scores are over 80 and the mode is 100. This data also have rounding patterns. When scores are less than 60, only values of 20, 40, 50 and 60 are found. 
+<br><br>
+When people are rating, they tend to give same scores on all aspects, so there are rounding patterns. People are more likely to rate their stay if thery are pretty satisfied than they would have otherwise Therefore, there are many full scores. 
+
+
+```{r,warning=FALSE,warning=FALSE}
+ggplot(airbnb, aes(x = number_of_reviews, y = review_scores_rating)) + 
+  geom_point(stroke = 0, alpha = 0.3, color = 'blue') +
+  ggtitle("Number of Reviews v.s. Review Scores Rating") +
+  xlab("Number of Reviews") +
+  ylab("Review Scores Rating") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+We can see from the scatterplot that there are few listings with many reviews(over 100) and a low review score(less than 80). When people are choosing where to stay, they prefer listings with higher rating scores, so high-score listings will in general get more reviews. When number of reviews surpass certain threshold(aproximately over 300), the score tend to be higher which indicate some consistently good host.
+
+*Since the quality of reviews in this data set meet our expectation, we can use this fact to analyze how people think on different type of accomodations. *
+```{r,warning=FALSE}
+ggplot(airbnb, aes(x=review_scores_rating,group = room_type, color = room_type)) + 
+  geom_density(alpha = .3) +
+  ggtitle("Density Curve of Review Scores Rating Group by Room Type") +
+  xlab("Review Scores Rating") +
+  ylab("Density") +
+  scale_color_discrete(name = "Room Type") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Above is a graph showing review score distribution for three different type of accommodations, entire home, private room and shared room, we want to find out which type of room is favored by travelers. The rating score density is getting sharper when people have more private space, which clearly stated that people will be more satisfied when they interact less with others. Compare to interact with strangers, either another traveler (shared room) or household (private), it's always better to have a quiet family, or alone time after a day of trip when you have control of the entire home. Giving customer more personal space would be a very positive factor to make them satisfied.
+
+###4.2 Whats the most effective driver for the listing price?
+
+####4.2.1 The first thing comes to our mind is the review score, is a nice host has the power to charge more?
+
+```{r,warning=FALSE,warning=FALSE}
+ggplot(airbnb, aes(x = price, y = review_scores_rating)) + 
+  geom_point(stroke = 0, alpha = 0.3, color = 'blue') + xlim(0,2500) +
+  ggtitle("Price v.s. Review Scores Rating") +
+  xlab("Price") +
+  ylab("Review Scores Rating") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Clearly, very few points laid in the lower right part of the graph, which indicates that people stay in higher priced rooms are very less likely to be unsatisfied since they are more probable to have a good experience with nicer room quality or better service. However, we can not be affirmative that high review scores can drive price up since there rooms with lower price also bring high review scores.
+
+*Next, we assumed that customer would love a larger space so they can stay more comfortably.*
+```{r, warning= FALSE, message = FALSE}
+ggplot(SFPrice, aes(x = square_feet,y = price)) + 
+  geom_point(alpha = 0.3, color = "blue",stroke = 0) +
+  geom_density_2d(color = "maroon") +
+  ylim(0,700) +
+  xlab("Square Feet") +
+  ylab("Price") +
+  ggtitle("Price v.s Square Feet") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Above figure depicts the price distribution in San Francisco based on Square Feet, we cannot suggest a significant relationship between room size and price. What we can infer from the graph is that there is a positive correlation between price and room size but the correlation is not significant.
+
+
+####4.2.2 Description
+Most of hosts will write a description for their listings, and we assume that people would value what they say in the description.
+We plot a word cloud to see what are they talking about the most
+```{r,  warning= FALSE, message= FALSE}
+set.seed(123)
+wordcloud(words = word_counts_description$words, freq = word_counts_description$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+We will pick "private" and "kitchen" to do further analysis. 
+
+Then we would control on some keyword to see if there's a effect on it.
+We processed each of the decescription to mine the keywords and devide the data into 2 groups to check the effect.
+
+```{r,fig.height= 5, warning= FALSE, message= FALSE}
+SFPrice_Description$private <- paste("private", SFPrice_Description$private) 
+g1 = SFPrice_Description%>%
+ mutate(description = fct_reorder(as.factor(private),desc(price), fun = median)) %>%
+  ggplot(aes(x =price, y = as.factor(private),fill = ..x..)) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+    scale_fill_distiller(name = "Price", palette = "GnBu") +
+    xlim(0,1000) +
+    xlab("Price") +
+    ylab("Description") +
+    ggtitle("Distribution of Each Key Word Respectively in Description") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+
+SFPrice_Description$kitchen <- paste("kitchen", SFPrice_Description$kitchen) 
+g2 = SFPrice_Description%>%
+ mutate(description = fct_reorder(as.factor(kitchen),desc(price), fun = median)) %>%
+  ggplot(aes(x =price, y = as.factor(kitchen),fill = ..x..)) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+    scale_fill_distiller(name = "Price", palette = "GnBu") +
+    xlim(0,1000) +
+    xlab("Price") +
+    ylab("Description")
+grid.arrange(g1,g2,nrow = 2)
+
+```
+
+Price distribution conditional on whether "private" or "kitchen" is being mentioned in the room description or not. From the ridgeline plot, we cannot see definite difference between the price distribution of the two.
+
+```{r,fig.height= 5, warning= FALSE, message= FALSE}
+check_d = c(colnames(SFPrice_Description)[99:100])
+Data_Des <-SFPrice_Description %>% gather(key = description, value,check_d)
+Data_Des$description <- Data_Des$value
+ggplot(Data_Des,aes(x = description, y = price, fill = description)) + 
+  geom_boxplot() + 
+  ggtitle("Price v.s Description") +
+  scale_x_discrete(name = "Description") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ylim(0,500) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Boxplot to analyze whether there is a significant difference in the median price conditional on whether word kitchen or "private" is included in the description or not. A boxplot pick out some subtle difference bettwen the median price of rooms include "private" in the descrption and those that don't include "private"
+
+
+####4.2.3 Cleaning Fee
+We assume that customers of Airbnb is price sensitive, and so does the cleaning fee. We want to know if there is a relationship between cleaning fee and the total price.
+```{r, warning= FALSE, message = FALSE}
+SFPrice = fread("listings.csv",header = T, sep = ',')
+SFPrice$cleaning_fee = as.numeric(gsub('[$,]', '', SFPrice$cleaning_fee))
+SFPrice$price = as.numeric(gsub('[$,]', '', SFPrice$price))
+ggplot(SFPrice, aes(x = cleaning_fee,y = price)) + 
+  geom_point(alpha = 0.3, color = "blue",stroke = 0) +
+  geom_density_2d(color = "maroon") +
+  ylim(0,700) +
+  xlim(0,300) +
+  xlab("Cleaning Fee") +
+  ylab("Price") +
+  ggtitle("Price v.s Cleaning Fee") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme_classic()
+```
+
+Above figure depicts the price distribution in San Francisco based on cleaning fee. It appears that the result is very similar to that of room size, a insignficant positive correlation.
+
+####4.2.4 Location.
+We break the listings by zip code and see if location drives the price. 
+```{r,fig.height= 5, warning= FALSE, message= FALSE}
+
+SFPrice <- SFPrice[!is.na(SFPrice$zipcode)]
+SFPrice%>%
+  mutate(zipcode = fct_reorder(as.factor(zipcode),desc(price), fun = median)) %>%
+    ggplot(aes(x =price, y = as.factor(zipcode),fill = ..x..)) +
+    geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+    scale_fill_distiller(name = "Price", palette = "GnBu")+
+    xlim(0,1000) +
+    ylab("Zipcode") +
+    xlab("Price") +
+    ggtitle("Zipcode Distribution Comparison") +
+    theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+Price distribution group by zipcode. From the figure, we can deduce that zip code play a essentail role in determing the pricing of room rentals.
+
+
+```{r,fig.height= 5, warning= FALSE, message= FALSE}
+SFPrice <- SFPrice[!is.na(SFPrice$zipcode)]
+SFPrice%>%
+  mutate(zipcode = fct_reorder(as.factor(zipcode),desc(price), fun = median)) %>%
+  ggplot(aes(x = zipcode, y = price, fill = zipcode)) + 
+    geom_boxplot() + 
+    ggtitle("Zipcode v.s Price") +
+    scale_x_discrete(name = "Zip Code") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylim(0,850) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+A boxplot further confirmed our gusses. The price distribution conditional on zip code varies relatively more than it conditional on room size and room description.
+
+```{r,warning=FALSE}
+medians <- airbnb %>% group_by(zipcode) %>% 
+    summarize(median = median(na.omit(price))) %>%
+    transmute(region = zipcode, value = median)
+medians$region <- as.character(medians$region)
+medians <- na.omit(medians)
+medians <- subset(medians, region != 94106 & region != 94113 & region != 94965 & 
+                    region != 94510 & region != 94014)
+zip_choropleth(medians, county_zoom = 6075, num_colors = 6,
+               title = "Median Price by Zipcode") + 
+  scale_fill_brewer(palette = "GnBu", na.value = "white",
+                    guide_legend(title = "Median Price"),
+                    labels = c("89-125","125-150","150-156","156-178","178-180","180-500","No Data"))
+```
+
+We can observe that the dark, pricy areas are clustered at the downtown area, which is a great way to indicate that how location affect the median price.
+
+##4.3 How does location affect the price?
+
+*4.3.1 Famous attractions*
+Since most of the tourist come to San Francisco will definatly visit the attraction points like Fisherman's Wharf, Lambo..... we assume that being closer to these places will drive the prices up, we found the coordinate of these places and calculate the cartesian distance for each room, and see if the distance will affect pricing. 
+```{r, warning= FALSE, message= FALSE}
+SFPrice_Sight$price = as.numeric(gsub('[$,]', '', SFPrice_Sight$price))
+ggplot(SFPrice_Sight, aes(y = price,x = `Shortest Distance`)) + 
+  ggtitle("Price v.s Shortest Distance to Four Famous Sight") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_point(alpha = 0.3, color = "blue",stroke = 0) +
+  geom_density_2d(color = "maroon") +
+  ylim(0,750) +
+  xlab("Price") +
+  ylab("Shortest Distance") +
+  theme_classic()
+```
+
+Above figure depicts the price distribution in San Francisco based on their shortest distance to four of the most famous sight("Fisherman's Wharf","Lombart St","Union Square","Golden Gate Bridge") in SF.House rent on airbnb SF tend to be traveling oriented as what we can see from the graph that most of the data points are very close to four of the most famous sight in SF and price are generally lower for the rooms that are far away from those famous sights
+
+```{r fig.height=6, fig.width= 9, warning= FALSE, message = FALSE}
+library(ggrepel)
+A1 = aggregate(SFPrice_Sight[, c(62,98)], list(SFPrice_Sight$zipcode), median)
+names(A1)[1] = "Zipcode"
+A1$Zipcode = as.factor(A1$Zipcode)
+A1 = A1[!A1$Zipcode %in% factor("94113"),]
+ggplot(A1, aes(x =`Shortest Distance`, y= price)) +
+  geom_point(aes(color = Zipcode)) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_viridis(discrete=TRUE) +
+  theme_bw() +
+  ggtitle("Median Price v.s Shortest Distance to Famoust Sight Based On Zipcode") +
+  xlab("Shortest Distance") +
+  ylab("Price") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_label_repel(aes(label = Zipcode),box.padding   = 0.8, point.padding = 1,segment.color = 'grey50') +
+  theme_classic()
+```
+
+Above figure depicts median price of each region based on Shortes Distance to the four famous sight in San Francisco. It can be clearly observed that zip code 94104 has highest median price and can be considered as an outlier. After further investigation, we discovered zip code 94104 is right next to Financial district and union square.Locating at the heart of San Francisco grant room owners the previlage to list their rooms on airbnb with exceptionally expensive prices. 
+
+
+
+
+*4.3.2 Transporation*
+Transporation is much more advanced today, hoop on a public bus or train can take you to most of the place in San Francisco, we want to know if having access to these tranportation affect the pricing? To determine the importance of transportation on price we target the transit description wrote by the host, apply text mining on it and try to extract critical information.
+
++ Parsing transit description
++ Applied methods from nltk library to tokenize each word, remove the fillers and analyze the usefulness of the word in the paragraph.
++ Get total transportation description word frequenct count
++ Construct anlysis based on different price range 
+
+```{r, warning=FALSE}
+set.seed(1234)
+wordcloud(words = word_counts_transit$words, freq = word_counts_transit$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+Figure above reveals high frequency words that San Francisco room rental owner like to use when describe how accesible the tranportation is from their renting place. As what most people expected, those high frequency word include bus, parking, bart, train, uber, shuttle etc.
+
+
+We also want to know the relationship of tranportation method and pricing level, so we break the listings into 5 grades and dig into each of them. We parse their description about transit and find the mehods that are mentioned the most:
+
+```{r, warning= FALSE, message=FALSE}
+data$group = as.factor(data$group)
+empty_bar=4
+
+to_add = data.frame( matrix(NA, empty_bar*nlevels(data$group), ncol(data)) )
+colnames(to_add) = colnames(data)
+to_add$group=rep(levels(data$group), each=empty_bar)
+data=rbind(data, to_add)
+data=data %>% arrange(group)
+data$id=seq(1, nrow(data))
+ 
+label_data=data
+number_of_bar=nrow(label_data)
+angle= 90 - 360 * (label_data$id-0.5) /number_of_bar     
+label_data$hjust<-ifelse( angle < -90, 1, 0)
+label_data$angle<-ifelse(angle < -90, angle+180, angle)
+
+
+ggplot(data, aes(x=as.factor(id), y=value, fill=group)) +      
+  geom_bar(stat="identity", alpha=0.5) +
+  ylim(-0.5,1.2) +
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    plot.margin = unit(rep(-1,4), "cm")
+  ) +
+  coord_polar() +
+  geom_text(data=label_data, aes(x=id, y=value, label=word, hjust=hjust), color="black", fontface="bold",alpha=0.6, size=3, angle= label_data$angle, inherit.aes = FALSE ) +
+  scale_fill_discrete(breaks = c("0~50","50~100","100~150","150~200",">200"), name = "Price Range")
+ 
+```
+
+Figure abve displays the top 11 most frequent words used in their transit description group by price range. We can find that parking is mentioned most for high price gourp which inferred that people paying expensive rooms are more likly to be driving, and BART(Bay Area Rapid Transit, a inter city train system) is mentioned the most in the low price group which can indicate that people paying less are more likely to stay closer to the train.
+
+However, these information are good sources to prove causality.
+
+Then we go further with the text mining, we divide listings into pair of groups by mentioning some transit method or not to see the effect of each trannsporation method on price. 
+
+```{r fig.height= 7,fig.width= 7, warning=FALSE, message=FALSE}
+SFPrice = fread("priceNew.csv",header = T, sep = ',')
+SFPrice$bus <- paste("bus",SFPrice$bus)
+G1 = ggplot(SFPrice,aes(x =price, y = as.factor(bus),fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_distiller(name = "Price", palette = "GnBu") +
+  theme(plot.title = element_text(hjust = 0.5))  +
+  xlim(0,750) + ggtitle("Include Bus in Transportation respetively vs Not")+
+  xlab("Price") + ylab("Transportation")
+
+SFPrice$bart <- paste("bart",SFPrice$bart)
+G2 = ggplot(SFPrice,aes(x =price, y = as.factor(bart),fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_distiller(name = "Price", palette = "GnBu") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlim(0,750) + ggtitle("Include Bart in Transportation respetively vs Not")+
+  xlab("Price") + ylab("Transportation")
+
+SFPrice$shuttle <- paste("shuttle",SFPrice$shuttle)
+G3 = ggplot(SFPrice,aes(x =price, y = as.factor(shuttle),fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_distiller(name = "Price", palette = "GnBu") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlim(0,750) + ggtitle("Include Shuttle in Transportation respetively vs Not")+
+  xlab("Price") + ylab("Transportation")
+SFPrice$train <- paste("train",SFPrice$train)
+G4 = ggplot(SFPrice,aes(x =price, y = as.factor(train),fill = ..x..)) +
+  geom_density_ridges_gradient(scale = 3, rel_min_height = 0.01) +
+  scale_fill_distiller(name = "Price", palette = "GnBu") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlim(0,750) + ggtitle("Include Train in Transportation respetively vs Not")+
+  xlab("Price") + ylab("Transportation")
+
+grid.arrange(G1,G2,G3,G4,nrow = 4)
+```
+
+Figure above displays the distribution of price distinction conditional on the four most prevailing transportaions in San Francisco. Although,each pair of specific transportation mean do exhibit some difference,the difference between are rather subtle and cannot be taken as an reasonable factor to affect the price of room listings on Airbnb.
+
+
+```{r,fig.height= 5, warning= FALSE, message= FALSE}
+SFPrice = fread("priceNew.csv",header = T, sep = ',')
+check = c(colnames(SFPrice)[c(99,100,101,104)])
+Data <-SFPrice %>% gather(key = transportation, value,check)
+Data$Transportation <- paste(Data$transportation,Data$value)
+Data%>% 
+  mutate(Transportation = fct_reorder(as.factor(Transportation), desc(price), fun = median)) %>%
+    ggplot(aes(x =as.factor(Transportation), y = price,fill = Transportation)) +
+    geom_boxplot() + 
+    ggtitle("Price v.s Transportation") +
+    scale_x_discrete(name = "Transportation") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylim(0,500) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+The boxplot displays the price distribution conditional on whether or not include that specific mean of transportation in the transportation description. Again, a boxplot further confirmed our previous insight. We can not find a difference of among those groups of listings that mentioned each transportation method or not.
+
+
+```{r fig.height= 3, warning= FALSE, message= FALSE}
+SFPrice_Transit%>% 
+  mutate(flag = fct_reorder(as.factor(Transit), desc(price), fun = median)) %>%
+  ggplot(aes(x =price, color = Transit)) +
+  geom_density(alpha = 0.5) +
+  ggtitle("Density Curve of Include Transit v.s not") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlim(0,950)
+```
+
+Price density grouped by whether do room owners include bus, bart, train, shuttle in their transportation description or not.We can not observe a significant difference between the listings that mentioned transit or not.
+
+Most of people in California will drive a car to palces, and so does travelers, many of them will rent a car. In that case, a parking place would be important, how does that effect the price?
+
+```{r, fig.height= 3, warning= FALSE, message= FALSE}
+SFPrice_Parking%>%
+  mutate(flag = fct_reorder(as.factor(Parking), desc(price), fun = mean)) %>%
+  ggplot(aes(x =price, color = Parking)) +
+  geom_density(alpha = 0.5) +
+  ggtitle("Density Curve of Price v.s Parking Include or Parking Not Include") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlim(0,1200)+
+  ylab("Density") +
+  xlab("Price")
+```
+
+Price density grouped by whether do room owners include Parking in their transportation description or not. Again, we can not observe a significant difference between the two groups.
+
+
+##5. Executive Summary 
+
+Pricing strategy is a rather critical component for hotel and airline industries, corporations like Hilton and Marriot hire researchers in fields like operation research, industrial engineering, and even psychology to develop the dynamic pricing model to react on the market demand and elevate the profit. For hosts on Airbnb, they are not necessarily having a degree in those fields, how can they make an offer to make the most out of the market? Browsing other listings online seems a great idea, and Airbnb does have many filters to let people find rooms similar to theirs. However, there are so many components can affect the price and so many listing in cities like San Francisco, an average host doesn’t have enough statistical knowledge to have a clear idea about the what’s driving the price and make the best offer. Therefore, our goal is to present these drivers and help the hosts to better determine what they should offer.
+
+Obviously, location is still the biggest drive for the price as we have assumed. The price goes higher for the districts by the northeast coast and downtown area, which follows the distribution in the real estate market, a higher valued house can charge more for room sharing. Since these houses or condos are sold for a higher price, we can infer these places have great views and luxury finish, and therefore can provide a better experience for the traveler. 
+
+
+```{r,fig.height= 5, warning= FALSE, message= FALSE,echo=FALSE}
+SFPrice <- SFPrice[!is.na(SFPrice$zipcode)]
+SFPrice%>%
+  mutate(zipcode = fct_reorder(as.factor(zipcode),desc(price), fun = median)) %>%
+  ggplot(aes(x = zipcode, y = price, fill = zipcode)) + 
+    geom_boxplot() + 
+    ggtitle("Zipcode v.s Price") +
+    scale_x_discrete(name = "Zip Code") +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    ylim(0,850) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+The district with the highest overall price is 94104, a neighbor right by the financial district, it can be interpreted that people go to San Francisco for business trip want to live close to the companies they are going to, and they are willing to pay a higher price due to subsidiaries from their employer. For average travelers, this district is also in the heart of downtown San Francisco, which can provide easier transportation and access to bars and restaurants, the word cloud for descriptions of listings in this district below approved this point.
+
+```{r, warning= FALSE, message= FALSE, echo = FALSE}
+set.seed(1234)
+wordcloud(words = word_counts_94104$words, freq = word_counts_94104$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+```
+
+
+We can see these hosts are talking a lot about clubs, union square, and dining in their descriptions. These are the places people would love to walk rather than ride for half an hour for, and hence living close to it and enjoy, the demand. Therefore, driving the price up. If we trace back the development of city neighborhoods, that’s how different clusters are formed, people want to stay closer to the place that attracts them. 
+
+On the other hand, the most pricey areas are also very close to the famous attraction places in San Francisco such as Fisherman’s Wharf, Golden Gate Bridge, Lombard Street, and union square, which also drives the price up as we can see from the graph below Being away from attractions is preventing many districts to achieve a higher price. 
+
+```{r fig.height=6, fig.width= 9, warning= FALSE, message = FALSE, echo=FALSE}
+library(ggrepel)
+A1 = aggregate(SFPrice_Sight[, c(62,98)], list(SFPrice_Sight$zipcode), median)
+names(A1)[1] = "Zipcode"
+A1$Zipcode = as.factor(A1$Zipcode)
+A1 = A1[!A1$Zipcode %in% factor("94113"),]
+ggplot(A1, aes(x =`Shortest Distance`, y= price)) +
+  geom_point(aes(color = Zipcode)) +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_color_viridis(discrete=TRUE) +
+  theme_bw() +
+  ggtitle("Median Price v.s Shortest Distance to Famoust Sight Based On Zipcode") +
+  xlab("Shortest Distance") +
+  ylab("Price") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_label_repel(aes(label = Zipcode),box.padding   = 0.8, point.padding = 1,segment.color = 'grey50') +
+  theme_classic()
+```
+
+It’s easier to understand that people not willing to travel far for clubs and restaurants. How about other places like attraction points, parks, and shopping mall? Do travelers want to spend time on the road? If that’s the case, listings with easier access to public transit would be more competitive and charge more. However,the fact is not, as we can observe from the graph below, the price distribution between listings mentioning one of the public transit method(Bus, Train, Bart, Shuttle) in their description or not at all, is rather subtle.
+
+```{r fig.height= 3, warning= FALSE, message= FALSE,echo=FALSE}
+SFPrice_Transit%>% 
+  mutate(flag = fct_reorder(as.factor(Transit), desc(price), fun = median)) %>%
+  ggplot(aes(x =price, color = Transit)) +
+  geom_density(alpha = 0.5) +
+  ggtitle("Density Curve of Include Transit v.s not") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlim(0,950)
+```
+
+We know that public transportation in California is not so convenient, most people will drive to places and so does travelers. If the traveling people rented a car, they would need a place to park, so what about hosts mentioning parking? 
+
+```{r,warning= FALSE, message= FALSE,echo=FALSE}
+SFPrice_Parking%>%
+  mutate(flag = fct_reorder(as.factor(Parking), desc(price), fun = mean)) %>%
+  ggplot(aes(x =price, color = Parking)) +
+  geom_density(alpha = 0.5) +
+  ggtitle("Density Curve of Price v.s Parking Include or Parking Not Include") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  xlim(0,1200)+
+  ylab("Density") +
+  xlab("Price")
+```
+
+
+Again, not so much difference. Therefore, this verifies our guess that when people travel to San Francisco, they do not want to spend much time on the road again, but rather stay closer to the places they plan to go. 
+
+Therefore, the most exciting finding for our analysis is that we revealed the more intrinsic relationships between price and location. Harold Samuel, a real estate tycoon in Britain, coined the expression: “There are three things that matter in property: location, location, location”. Our findings verified that this rule still holds in nowadays even with the unprecedented technological advancement in transportation. 
+
+Our suggestions to the hosts or people looking for house and plan to share rooms for profit in the future is that it is much better and competitive to being close to either attraction points for tourists or business districts for business travelers or clubs and restaurants for everyone is the best selling point. Take this advantage and otherwise, compete on price or service. 
+
+******************************************************************************************************************************
+##6. Interactive graph 
+
+###6.1 Interactive Component
+
+In the interactive map, we can see spatial patterns of price, number_of_reviews, property_type, review_scores_rating and/or accommodates. One variable can be chosen at one time to color the points in the map. Darker color represents larger value of the selected variable. The density curve or bar chart on the left of the page shows the distribution of the chosen variable. Filters can be applied to select range of price/number of reviews/property types/rating score/number of can be accommodated/Owner identity status. The large markers with numbers is showing the numbers of listings in that area. Click the circle to zoom in and see more details in this area. 
+
+On clicking the pins on the map, the price and room type will be shown in detail. 
+
+It's possible to apply mutiple filters at the same time. Such as, we can see is there any apartment with price less than 200 and rating more than 80% near Union Square. 
+
+###6.2 variable definations:
+
+ - Color by: Choose a variable to calor the map and see the distribution of it.
+ - Price Range: The one night price for the room.
+ - Number of Reviews: The number of reviews on Airbnb data. More popular places will have more reviews.
+ - Review Scores Range: The rating score for the room on Airbnb.
+ - Number of Accommodates: Number of people can be accommodated by the room.
+ - Property Type: type of the room. Apartment/Condo/...
+ - Host Identity Verified: If the host's identity have been verified. 't' means the host's identity have been verified, 'f' means otherwise.
+
+*Link for interactive graph: *
+*https://edaviqnoone.shinyapps.io/edav_final_project/*
+
+******************************************************************************************************************************
+##7. Conclusion 
+From our analysis, we successfully evaluated each potential market drivers and give intuitive visualizations to support our points. However, there are still limitations for our analysis:
+
++ The effect of location is very strong on price, and thus it might distort the effect of other components on price. 
++ There are so many variables that can be crucial to the price, and we don’t have perfect method to condition on them other than empirical reasoning, in which we might lose some potential findings. 
++ For reviews data, there might be bias since people are more likely to leave a review if they are very satisfied or extremly unsatisfied, so the reviews of mid-range scores are missing.  
+
+By doing this project, we also learned so many lessons:
+
++ Static graphs sometimes are limited in conveying information when compared with interactive graphs. 
++ A static graph usually has a point or tow that it is emphasizing to the viewer, on the other hand, an interactive graph can let the view to dig into the graph and have findings by their own
++ When we are making a graph with many categories, differenciating the colors is not a great way to cope with it, as we have a tough time trying a lot of color schemes but still difficult to make distinctions between some points with close color. Instead, we add labels and resize the graph to let the viewers be able to determine what color respect to what label.
+
+In conclusion, this project give us a deeper understanding of how to use visualization to reveal information from data and make useful inferences. We also hone our skills in data cleansing, R coding, and Shiny App. This is a great challenge and we are eager to take on more. 
+
+
+******************************************************************************************************************************
+###Reference 
+
++ Github link:https://github.com/chengruiwu008/edavFnialProject
+
++ Data Source:https://airbnb.secure.force.com/contactus
+
+
+
