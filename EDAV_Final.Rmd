@@ -316,7 +316,7 @@ We can observe that the dark, pricy areas are clustered at the downtown area, wh
 
 ##4.3 How does location affect the price?
 
-*4.3.1 Famous attractions*
+####4.3.1 Famous attractions
 Since most of the tourist come to San Francisco will definatly visit the attraction points like Fisherman's Wharf, Lambo..... we assume that being closer to these places will drive the prices up, we found the coordinate of these places and calculate the cartesian distance for each room, and see if the distance will affect pricing. 
 ```{r, warning= FALSE, message= FALSE}
 SFPrice_Sight$price = as.numeric(gsub('[$,]', '', SFPrice_Sight$price))
@@ -357,7 +357,8 @@ Above figure depicts median price of each region based on Shortes Distance to th
 
 
 
-*4.3.2 Transporation*
+####4.3.2 Transporation
+
 Transporation is much more advanced today, hoop on a public bus or train can take you to most of the place in San Francisco, we want to know if having access to these tranportation affect the pricing? To determine the importance of transportation on price we target the transit description wrote by the host, apply text mining on it and try to extract critical information.
 
 + Parsing transit description
