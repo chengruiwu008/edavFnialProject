@@ -1,13 +1,13 @@
-name: EDAV_final_project
-title: EDAV_final_project
+name: edav_final_project
+title: edav_final_project
 username:
 account: edaviqnoone
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 609030
-bundleId: 1753284
+bundleId: 1753778
 url: https://edaviqnoone.shinyapps.io/edav_final_project/
-when: 1544465249.33221
+when: 1544477184.46785
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: process copy.R

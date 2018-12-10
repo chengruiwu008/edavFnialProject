@@ -8,4 +8,6 @@ df = read.csv('clean_listing.csv', stringsAsFactors = F)
 #df[is.na(df)]<- 0
 df$accommodates = as.numeric(as.character(df$accommodates))
 df[is.na(df)]<- 0
+df <- filter(df, !property_type == "181")
+df <- filter(df, !property_type == "")
 #df$review_scores_rating <- 

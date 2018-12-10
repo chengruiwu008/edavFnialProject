@@ -11,6 +11,7 @@ server <- function(input,output, session){
     df <- filter(df, number_of_reviews >= input$number_of_reviews[1])
     df <- filter(df, number_of_reviews <= input$number_of_reviews[2])
     
+    
     df <- filter(df, accommodates >= input$accommodates[1])
     df <- filter(df, accommodates <= input$accommodates[2])
     # print(input$housetype)
@@ -84,7 +85,26 @@ server <- function(input,output, session){
       df <- filter(df, host_identity_verified == input$host_identity_verified)}
     if (input$colorby == "property_type"){
       counts <- table(df[[input$colorby]])
-      ggplot(df)+geom_bar(aes(x=df[[input$colorby]],fill = df[[input$colorby]]))+
+      ggplot(df)+geom_bar(aes(x=df[[input$colorby]]),
+                          fill = "lightblue", color = "darkblue")+
+        theme(axis.title.x=element_blank(),
+              #axis.text.x=element_blank(),
+              axis.ticks.x=element_blank(),
+              axis.title.y=element_blank(),
+              axis.text.y=element_blank(),
+              axis.ticks.y=element_blank(),
+              axis.text.x=element_text(angle = 90),
+              legend.position="none") +
+        labs(x="", y="")+ggtitle(input$colorby)
+      #barplot(counts, 
+       #       main=input$colorby,
+        #      ylab="Number of Listings",
+         #     xlab="Type",
+          #    col='lightblue')
+    }else if (input$colorby == "accommodates"){
+      counts <- table(df[[input$colorby]])
+      ggplot(df)+geom_bar(aes(x=df[[input$colorby]]),
+                          fill = "lightblue", color = "darkblue")+
         theme(axis.title.x=element_blank(),
               #axis.text.x=element_blank(),
               axis.ticks.x=element_blank(),
@@ -94,10 +114,10 @@ server <- function(input,output, session){
               legend.position="none") +
         labs(x="", y="")+ggtitle(input$colorby)
       #barplot(counts, 
-       #       main=input$colorby,
-        #      ylab="Number of Listings",
-         #     xlab="Type",
-          #    col='lightblue')
+      #       main=input$colorby,
+      #      ylab="Number of Listings",
+      #     xlab="Type",
+      #    col='lightblue')
     }
     else{
       input_type = df[[input$colorby]]
