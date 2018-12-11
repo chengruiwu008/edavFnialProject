@@ -118,7 +118,7 @@ ggplot(airbnb, aes(x = review_scores_rating)) +
 
 There are 1148 observations with missing value. Most listings' scores are over 80 and the mode is 100. This data also have rounding patterns. When scores are less than 60, only values of 20, 40, 50 and 60 are found. 
 <br><br>
-When people are rating, they tend to give same scores on all aspects, so there are rounding patterns. People are more likely to rate their stay if thery are pretty satisfied than they would have otherwise Therefore, there are many full scores. 
+When people are rating, they tend to give same scores on all aspects, so there are rounding patterns. People are more likely to rate their stay if thery are pretty satisfied. Therefore, there are many full scores. 
 
 
 ```{r,warning=FALSE,warning=FALSE}
@@ -339,6 +339,7 @@ A1 = aggregate(SFPrice_Sight[, c(62,98)], list(SFPrice_Sight$zipcode), median)
 names(A1)[1] = "Zipcode"
 A1$Zipcode = as.factor(A1$Zipcode)
 A1 = A1[!A1$Zipcode %in% factor("94113"),]
+A1 = A1[!A1$Zipcode %in% factor("94510"),]
 ggplot(A1, aes(x =`Shortest Distance`, y= price)) +
   geom_point(aes(color = Zipcode)) +
   theme(plot.title = element_text(hjust = 0.5)) +
@@ -521,7 +522,7 @@ SFPrice%>%
     geom_boxplot() + 
     ggtitle("Zipcode v.s Price") +
     scale_x_discrete(name = "Zip Code") +
-    theme(plot.title = element_text(hjust = 0.5)) +
+    theme(plot.title = element_text(hjust = 0.5, size = 20)) +
     ylim(0,850) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
@@ -530,6 +531,10 @@ SFPrice%>%
 The district with the highest overall price is 94104, a neighbor right by the financial district, it can be interpreted that people go to San Francisco for business trip want to live close to the companies they are going to, and they are willing to pay a higher price due to subsidiaries from their employer. For average travelers, this district is also in the heart of downtown San Francisco, which can provide easier transportation and access to bars and restaurants, the word cloud for descriptions of listings in this district below approved this point.
 
 ```{r, warning= FALSE, message= FALSE, echo = FALSE}
+layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
+par(mar=rep(0, 4))
+plot.new()
+text(x=0.5, y=0.3, "Word Cloud for Discriptions in 94104", cex = 1.5)
 set.seed(1234)
 wordcloud(words = word_counts_94104$words, freq = word_counts_94104$freq, min.freq = 1,
           max.words=200, random.order=FALSE, rot.per=0.35, 
@@ -545,19 +550,19 @@ On the other hand, the most pricey areas are also very close to the famous attra
 library(ggrepel)
 A1 = aggregate(SFPrice_Sight[, c(62,98)], list(SFPrice_Sight$zipcode), median)
 names(A1)[1] = "Zipcode"
-A1$Zipcode = as.factor(A1$Zipcode)
 A1 = A1[!A1$Zipcode %in% factor("94113"),]
+A1 = A1[!A1$Zipcode %in% factor("94510"),]
+A1$Zipcode = as.factor(A1$Zipcode)
+levels(A1$Zipcode) <- c("94104","94105","94108","94123","94111","94133","94102","94114","94115","94107","94131","94158","94117","94121","94110","94118","94103","94109","94122","94127",
+"94116","94134","94112","94124","94106","94132","94965","94014")
 ggplot(A1, aes(x =`Shortest Distance`, y= price)) +
-  geom_point(aes(color = Zipcode)) +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  scale_color_viridis(discrete=TRUE) +
-  theme_bw() +
+  geom_point(aes(color = Zipcode)) + 
   ggtitle("Median Price v.s Shortest Distance to Famoust Sight Based On Zipcode") +
   xlab("Shortest Distance") +
   ylab("Price") +
-  theme(plot.title = element_text(hjust = 0.5)) +
   geom_label_repel(aes(label = Zipcode),box.padding   = 0.8, point.padding = 1,segment.color = 'grey50') +
-  theme_classic()
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.2, size = 18))
 ```
 
 It’s easier to understand that people not willing to travel far for clubs and restaurants. How about other places like attraction points, parks, and shopping mall? Do travelers want to spend time on the road? If that’s the case, listings with easier access to public transit would be more competitive and charge more. However,the fact is not, as we can observe from the graph below, the price distribution between listings mentioning one of the public transit method(Bus, Train, Bart, Shuttle) in their description or not at all, is rather subtle.
@@ -568,7 +573,7 @@ SFPrice_Transit%>%
   ggplot(aes(x =price, color = Transit)) +
   geom_density(alpha = 0.5) +
   ggtitle("Density Curve of Include Transit v.s not") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(hjust = 0.2,size = 18)) +
   xlim(0,950)
 ```
 
@@ -580,7 +585,7 @@ SFPrice_Parking%>%
   ggplot(aes(x =price, color = Parking)) +
   geom_density(alpha = 0.5) +
   ggtitle("Density Curve of Price v.s Parking Include or Parking Not Include") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(hjust = 0.15, size = 17)) +
   xlim(0,1200)+
   ylab("Density") +
   xlab("Price")
