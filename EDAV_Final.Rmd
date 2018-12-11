@@ -339,7 +339,6 @@ A1 = aggregate(SFPrice_Sight[, c(62,98)], list(SFPrice_Sight$zipcode), median)
 names(A1)[1] = "Zipcode"
 A1$Zipcode = as.factor(A1$Zipcode)
 A1 = A1[!A1$Zipcode %in% factor("94113"),]
-A1 = A1[!A1$Zipcode %in% factor("94510"),]
 ggplot(A1, aes(x =`Shortest Distance`, y= price)) +
   geom_point(aes(color = Zipcode)) +
   theme(plot.title = element_text(hjust = 0.5)) +
@@ -551,13 +550,11 @@ library(ggrepel)
 A1 = aggregate(SFPrice_Sight[, c(62,98)], list(SFPrice_Sight$zipcode), median)
 names(A1)[1] = "Zipcode"
 A1 = A1[!A1$Zipcode %in% factor("94113"),]
-A1 = A1[!A1$Zipcode %in% factor("94510"),]
 A1$Zipcode = as.factor(A1$Zipcode)
-levels(A1$Zipcode) <- c("94104","94105","94108","94123","94111","94133","94102","94114","94115","94107","94131","94158","94117","94121","94110","94118","94103","94109","94122","94127",
-"94116","94134","94112","94124","94106","94132","94965","94014")
 ggplot(A1, aes(x =`Shortest Distance`, y= price)) +
   geom_point(aes(color = Zipcode)) + 
   ggtitle("Median Price v.s Shortest Distance to Famoust Sight Based On Zipcode") +
+  scale_color_viridis(discrete=TRUE) +
   xlab("Shortest Distance") +
   ylab("Price") +
   geom_label_repel(aes(label = Zipcode),box.padding   = 0.8, point.padding = 1,segment.color = 'grey50') +
@@ -634,7 +631,7 @@ By doing this project, we also learned so many lessons:
 
 + Static graphs sometimes are limited in conveying information when compared with interactive graphs. 
 + A static graph usually has a point or tow that it is emphasizing to the viewer, on the other hand, an interactive graph can let the view to dig into the graph and have findings by their own
-+ When we are making a graph with many categories, differenciating the colors is not a great way to cope with it, as we have a tough time trying a lot of color schemes but still difficult to make distinctions between some points with close color. Instead, we add labels and resize the graph to let the viewers be able to determine what color respect to what label.
++ When we are making a graph with many categories, differenciating the colors is not a great way to cope with it, as we have a tough time trying a lot of color schemes but still difficult to make distinctions between some points with close color. Instead, we add labels and resize the graph to let the viewers be able to determine what color respect to what label. In addtion, it is hard to keep consistency of colors of these categories among different graphs.
 
 In conclusion, this project give us a deeper understanding of how to use visualization to reveal information from data and make useful inferences. We also hone our skills in data cleansing, R coding, and Shiny App. This is a great challenge and we are eager to take on more. 
 
